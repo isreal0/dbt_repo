@@ -14,3 +14,5 @@ models:
     columns:
       - name: order_id
         description: Unique policy/order identifier.
+    tests:
+      - compare_stg_to_ods_schema

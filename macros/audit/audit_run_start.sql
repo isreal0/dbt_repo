@@ -1,6 +1,6 @@
 {% macro audit_run_start() %}
 
-    {% if execute and flags.WHICH == 'run' %}
+    {% if execute and flags.WHICH != 'compile' %}
 
         {% set job_name = var('job_name', 'manual_dbt_run') %}
         {% set project_name_var = var('project_name', project_name) %}
