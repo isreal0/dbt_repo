@@ -2,7 +2,7 @@
 # Name your project! Project names should contain only lowercase characters
 # and underscores. A good package name should reflect your organization's
 # name or the intended use of these models
-name: 'my_new_project'
+name: 'dbt_repo'
 version: '1.0.0'
 config-version: 2
 
@@ -32,10 +32,5 @@ on-run-end:
   - "{{ audit_persist_results(results) }}"
 
 models:
-  my_new_project:
     +pre-hook:
       - "{{ audit_object_pre_run() }}"
-    staging:
-      +materialized: table
-    ODS:
-      +materialized: incremental
