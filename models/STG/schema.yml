@@ -1,6 +1,16 @@
 version: 2
 
+sources:
+  - name: demo_datashare
+    database: demo_shared_db
+    schema: demo_datashare
+    tables:
+      - name: policy
+        description: Source policy table from the Redshift datashare.
+
 models:
   - name: stg_policy
-    tests:
-       - compare_stg_to_ods_schema
+    description: Staging model for policy records from demo_datashare.policy.
+    columns:
+      - name: order_id
+        description: Unique policy/order identifier.

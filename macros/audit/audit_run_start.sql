@@ -1,76 +1,62 @@
-{% macro audit_compile_node_sql(node) %}
+{% macro audit_run_start() %}
 
-    {# 1. If dbt provides real compiled SQL, use it #}
+    {% if execute and flags.WHICH == 'run' %}
 
-    {% if node.compiled_code is defined and node.compiled_code %}
-        {{ return(node.compiled_code) }}
-    {% elif node.compiled_sql is defined and node.compiled_sql %}
-        {{ return(node.compiled_sql) }}
+        {% set job_name = var('job_name', 'manual_dbt_run') %}
+        {% set project_name_var = var('project_name', project_name) %}
+        {% set trigger_type = var('trigger_type', 'MANUAL') %}
+        {% set trigger_source = var('trigger_source', 'dbt Cloud IDE') %}
+        {% set business_date = var('business_date', '') %}
+        {% set git_version = var('git_version', '') %}
+
+        {% set cleanup_compile_sql %}
+            delete from audit.run
+            where lower(command_name) = 'compile'
+              and upper(status) in ('STARTED', 'START')
+              and job_name = '{{ job_name }}'
+              and project_name = '{{ project_name_var }}'
+              and target_name = '{{ target.name }}';
+        {% endset %}
+
+        {% do run_query(cleanup_compile_sql) %}
+
+        {% set sql %}
+            insert into audit.run (
+                invocation_id,
+                job_name,
+                project_name,
+                trigger_type,
+                trigger_source,
+                business_date,
+                command_name,
+                target_name,
+                status,
+                started_at,
+                git_version,
+                created_at
+            )
+            values (
+                '{{ invocation_id }}',
+                '{{ job_name }}',
+                '{{ project_name_var }}',
+                '{{ trigger_type }}',
+                '{{ trigger_source }}',
+                {% if business_date != '' %}
+                    cast('{{ business_date }}' as date),
+                {% else %}
+                    null,
+                {% endif %}
+                '{{ flags.WHICH }}',
+                '{{ target.name }}',
+                'STARTED',
+                getdate(),
+                nullif('{{ git_version }}', ''),
+                getdate()
+            );
+        {% endset %}
+
+        {% do run_query(sql) %}
+
     {% endif %}
-
-
-    {# 2. Otherwise use raw SQL #}
-
-    {% if node.raw_code is defined and node.raw_code %}
-        {% set sql_text = node.raw_code %}
-    {% elif node.raw_sql is defined and node.raw_sql %}
-        {% set sql_text = node.raw_sql %}
-    {% else %}
-        {{ return('') }}
-    {% endif %}
-
-
-    {# 3. Remove config block #}
-
-    {% if modules.re is defined %}
-        {% set sql_text = modules.re.sub('\\{\\{\\s*config\\(.*?\\)\\s*\\}\\}', '', sql_text, flags=modules.re.DOTALL) %}
-    {% endif %}
-
-
-    {# 4. Hard-code replacement for current source #}
-
-    {% set source_relation = '"demo_shared_db"."demo_datashare"."policy"' %}
-
-    {% set lb = '{{' %}
-    {% set rb = '}}' %}
-
-    {% set src_expr_1 = lb ~ " source('demo_datashare', 'policy') " ~ rb %}
-    {% set src_expr_2 = lb ~ "source('demo_datashare', 'policy')" ~ rb %}
-    {% set src_expr_3 = lb ~ " source(\"demo_datashare\", \"policy\") " ~ rb %}
-    {% set src_expr_4 = lb ~ "source(\"demo_datashare\", \"policy\")" ~ rb %}
-
-    {% set sql_text = sql_text | replace(src_expr_1, source_relation) %}
-    {% set sql_text = sql_text | replace(src_expr_2, source_relation) %}
-    {% set sql_text = sql_text | replace(src_expr_3, source_relation) %}
-    {% set sql_text = sql_text | replace(src_expr_4, source_relation) %}
-
-
-    {# 5. Replace current known ref if needed #}
-
-    {% set stg_relation = '"' ~ target.database ~ '"."' ~ target.schema ~ '"."stg_policy"' %}
-
-    {% set ref_expr_1 = lb ~ " ref('stg_policy') " ~ rb %}
-    {% set ref_expr_2 = lb ~ "ref('stg_policy')" ~ rb %}
-    {% set ref_expr_3 = lb ~ " ref(\"stg_policy\") " ~ rb %}
-    {% set ref_expr_4 = lb ~ "ref(\"stg_policy\")" ~ rb %}
-
-    {% set sql_text = sql_text | replace(ref_expr_1, stg_relation) %}
-    {% set sql_text = sql_text | replace(ref_expr_2, stg_relation) %}
-    {% set sql_text = sql_text | replace(ref_expr_3, stg_relation) %}
-    {% set sql_text = sql_text | replace(ref_expr_4, stg_relation) %}
-
-
-    {# 6. Replace this if used #}
-
-    {% if node.database is defined and node.schema is defined and node.alias is defined %}
-        {% set this_relation = '"' ~ node.database ~ '"."' ~ node.schema ~ '"."' ~ node.alias ~ '"' %}
-        {% set this_expr_1 = lb ~ " this " ~ rb %}
-        {% set this_expr_2 = lb ~ "this" ~ rb %}
-
-        {% set sql_text = sql_text | replace(this_expr_1, this_relation) %}
-        {% set sql_text = sql_text | replace(this_expr_2, this_relation) %}
-    {% endif %}
-
-    {{ return(sql_text | trim) }}
 
 {% endmacro %}
