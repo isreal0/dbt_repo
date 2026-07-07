@@ -1,0 +1,6 @@
+version: 2
+
+models:
+  - name: stg_policy
+    tests:
+       - compare_stg_to_ods_schema

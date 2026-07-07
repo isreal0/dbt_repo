@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: demo_datashare
+    database: demo_shared_db
+    schema: demo_datashare
+    tables:
+      - name: policy
